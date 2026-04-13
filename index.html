@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#ffffff">
+<title>Mccormick Rigging — Survey</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap');
+
+  :root {
+    --navy:      #0a1f44;
+    --teal:      #0e7c7c;
+    --teal-dark: #096060;
+    --teal-bg:   #e6f4f4;
+    --white:     #ffffff;
+    --page-bg:   #f4f6f9;
+    --border:    #c8d0dc;
+    --text:      #111827;
+    --muted:     #4b5563;
+    --safe:      #166534;
+    --safe-bg:   #dcfce7;
+    --monitor:   #1e40af;
+    --monitor-bg:#dbeafe;
+    --replace:   #92400e;
+    --replace-bg:#fef3c7;
+    --unsafe:    #991b1b;
+    --unsafe-bg: #fee2e2;
+    --radius:    10px;
+    --radius-sm: 7px;
+    --page-max:  640px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+    background: var(--page-bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 17px;
+    line-height: 1.6;
+  }
+
+  .app-header {
+    background: var(--white);
+    border-bottom: 3px solid var(--teal);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+
+  .logo-area { display: flex; align-items: center; gap: 12px; }
+  .logo-text .brand { font-size: 20px; font-weight: 700; color: var(--teal); display: block; line-height: 1.1; }
+  .logo-text .sub { font-size: 11px; letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase; display: block; }
+
+  .save-indicator { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--teal); opacity: 0; transition: opacity 0.4s; }
+  .save-indicator.show { opacity: 1; }
+  .save-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--teal); }
+
+  .progress-wrap { background: var(--white); border-bottom: 2px solid var(--border); padding: 14px 20px 12px; }
+  .progress-steps { display: flex; gap: 5px; max-width: var(--page-max); margin: 0 auto 8px; }
+  .step-pip { flex: 1; height: 6px; border-radius: 3px; background: var(--border); transition: background 0.3s; }
+  .step-pip.done { background: var(--teal); }
+  .step-pip.active { background: var(--navy); }
+  .progress-label { text-align: center; font-size: 14px; font-weight: 700; color: var(--navy); }
+
+  .page { display: none; max-width: var(--page-max); margin: 0 auto; padding: 28px 20px 130px; }
+  .page.active { display: block; }
+  .page-title { font-size: 28px; font-weight: 700; color: var(--navy); margin-bottom: 4px; }
+  .page-subtitle { font-size: 15px; color: var(--muted); margin-bottom: 28px; }
+
+  .section-heading { font-size: 13px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--teal); margin: 28px 0 14px; padding-bottom: 6px; border-bottom: 2px solid var(--teal-bg); }
+
+  .field-group { margin-bottom: 18px; }
+  .field-label { display: block; font-size: 14px; font-weight: 700; color: var(--navy); margin-bottom: 7px; }
+
+  .field-input, .field-select, .field-textarea {
+    width: 100%; background: var(--white); border: 2px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text);
+    font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+    font-size: 17px; padding: 14px 16px; outline: none; transition: border-color 0.2s;
+    -webkit-appearance: none; appearance: none;
+  }
+  .field-input:focus, .field-select:focus, .field-textarea:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(14,124,124,0.15); }
+  .field-select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1l6 6 6-6' stroke='%230e7c7c' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; padding-right: 44px; cursor: pointer; }
+  .field-textarea { resize: vertical; min-height: 100px; line-height: 1.7; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  .static-field-wrap { margin-bottom: 12px; }
+  .static-field { display: flex; align-items: stretch; background: var(--white); border: 2px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; min-height: 54px; }
+  .static-label { background: var(--teal-bg); border-right: 2px solid var(--border); padding: 14px 16px; font-size: 14px; font-weight: 700; color: var(--teal-dark); min-width: 175px; display: flex; align-items: center; line-height: 1.3; }
+  .static-input { flex: 1; background: transparent; border: none; color: var(--text); font-family: 'Atkinson Hyperlegible', Arial, sans-serif; font-size: 17px; padding: 14px 16px; outline: none; }
+  .static-select { flex: 1; background: transparent; border: none; color: var(--text); font-family: 'Atkinson Hyperlegible', Arial, sans-serif; font-size: 17px; padding: 14px 44px 14px 16px; outline: none; -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1l6 6 6-6' stroke='%230e7c7c' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; cursor: pointer; }
+
+  .info-card { background: var(--teal-bg); border: 2px solid var(--teal); border-radius: var(--radius); padding: 14px 18px; font-size: 15px; font-weight: 700; color: var(--teal-dark); margin-bottom: 22px; line-height: 2; }
+  .cond-pill { display: inline-block; padding: 2px 10px; border-radius: 20px; font-weight: 700; font-size: 14px; margin-right: 4px; }
+  .cond-S-pill { background: var(--safe-bg); color: var(--safe); }
+  .cond-M-pill { background: var(--monitor-bg); color: var(--monitor); }
+  .cond-R-pill { background: var(--replace-bg); color: var(--replace); }
+  .cond-U-pill { background: var(--unsafe-bg); color: var(--unsafe); }
+
+  .rigging-table-wrap { overflow-x: auto; border-radius: var(--radius); border: 2px solid var(--border); background: var(--white); margin-bottom: 16px; -webkit-overflow-scrolling: touch; }
+  .rigging-table { width: 100%; border-collapse: collapse; min-width: 600px; }
+  .rigging-table th { background: var(--navy); color: var(--white); font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 13px 12px; text-align: left; white-space: nowrap; }
+  .rigging-table td { padding: 7px; border-bottom: 1px solid var(--border); vertical-align: middle; background: var(--white); }
+  .rigging-table tr:nth-child(even) td { background: #f8fafc; }
+  .rigging-table tr:last-child td { border-bottom: none; }
+
+  .component-name { font-size: 14px !important; font-weight: 700; color: var(--navy); padding: 10px 12px !important; white-space: nowrap; }
+
+  .table-input { width: 100%; background: var(--white); border: 2px solid var(--border); border-radius: 6px; color: var(--text); font-family: 'Atkinson Hyperlegible', Arial, sans-serif; font-size: 15px; padding: 9px 11px; outline: none; transition: border-color 0.2s; }
+  .table-input:focus { border-color: var(--teal); box-shadow: 0 0 0 2px rgba(14,124,124,0.15); }
+
+  .table-select { width: 100%; background: var(--white); border: 2px solid var(--border); border-radius: 6px; color: var(--text); font-family: 'Atkinson Hyperlegible', Arial, sans-serif; font-size: 14px; padding: 9px 30px 9px 11px; outline: none; -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%230e7c7c' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; cursor: pointer; transition: border-color 0.2s; }
+  .table-select:focus { border-color: var(--teal); }
+
+  .cond-S { background: var(--safe-bg) !important; color: var(--safe) !important; font-weight: 700; border-color: #86efac !important; }
+  .cond-M { background: var(--monitor-bg) !important; color: var(--monitor) !important; font-weight: 700; border-color: #93c5fd !important; }
+  .cond-R { background: var(--replace-bg) !important; color: var(--replace) !important; font-weight: 700; border-color: #fcd34d !important; }
+  .cond-U { background: var(--unsafe-bg) !important; color: var(--unsafe) !important; font-weight: 700; border-color: #fca5a5 !important; }
+
+  .na-btn { display: inline-block; padding: 8px 10px; font-size: 13px; font-weight: 700; color: var(--muted); background: var(--page-bg); border: 2px solid var(--border); border-radius: 6px; cursor: pointer; width: 100%; text-align: center; transition: all 0.2s; font-family: 'Atkinson Hyperlegible', Arial, sans-serif; }
+  .na-btn.active { background: #e5e7eb; color: var(--navy); border-color: var(--navy); }
+  .row-na td .table-input, .row-na td .table-select { opacity: 0.2; pointer-events: none; }
+  .row-na .component-name { opacity: 0.4; }
+
+  .hardware-item { background: var(--white); border: 2px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 14px; }
+  .hardware-item-name { font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid var(--teal-bg); }
+  .hardware-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+
+  .param-item { background: var(--white); border: 2px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 14px; }
+  .param-name { font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid var(--teal-bg); }
+
+  .overall-rating { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-bottom: 24px; }
+  .rating-btn { padding: 18px 12px; border-radius: var(--radius); border: 3px solid var(--border); background: var(--white); color: var(--muted); font-family: 'Atkinson Hyperlegible', Arial, sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; text-align: center; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .rating-btn .code { font-size: 26px; font-weight: 700; }
+  .rating-btn[data-code="S"].selected { background: var(--safe-bg); border-color: var(--safe); color: var(--safe); }
+  .rating-btn[data-code="M"].selected { background: var(--monitor-bg); border-color: var(--monitor); color: var(--monitor); }
+  .rating-btn[data-code="R"].selected { background: var(--replace-bg); border-color: var(--replace); color: var(--replace); }
+  .rating-btn[data-code="U"].selected { background: var(--unsafe-bg); border-color: var(--unsafe); color: var(--unsafe); }
+  .rating-btn:hover { border-color: var(--teal); }
+
+  .summary-box { background: var(--white); border: 2px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 18px; }
+  .summary-box label { display: block; font-size: 14px; font-weight: 700; color: var(--navy); margin-bottom: 10px; }
+  .summary-textarea { width: 100%; background: var(--page-bg); border: 2px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'Atkinson Hyperlegible', Arial, sans-serif; font-size: 16px; line-height: 1.7; padding: 14px; outline: none; min-height: 160px; resize: vertical; transition: border-color 0.2s; }
+  .summary-textarea:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(14,124,124,0.15); }
+
+  .divider { height: 2px; background: var(--teal-bg); margin: 28px 0; border-radius: 2px; }
+
+  .nav-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--white); border-top: 2px solid var(--border); padding: 14px 20px; display: flex; gap: 12px; justify-content: center; z-index: 100; box-shadow: 0 -4px 16px rgba(0,0,0,0.08); }
+  .btn { padding: 16px 28px; border-radius: 50px; border: none; font-family: 'Atkinson Hyperlegible', Arial, sans-serif; font-size: 17px; font-weight: 700; cursor: pointer; transition: all 0.18s; display: flex; align-items: center; gap: 8px; }
+  .btn-primary { background: var(--teal); color: var(--white); flex: 1; justify-content: center; max-width: 260px; }
+  .btn-primary:active { background: var(--teal-dark); transform: scale(0.97); }
+  .btn-secondary { background: var(--white); color: var(--navy); border: 2px solid var(--border); padding: 16px 22px; }
+  .btn-generate { background: var(--navy); color: var(--white); flex: 1; justify-content: center; max-width: 300px; }
+  .btn-generate:active { transform: scale(0.97); }
+
+  .toast { position: fixed; top: 86px; left: 50%; transform: translateX(-50%) translateY(-16px); background: var(--navy); color: var(--white); padding: 13px 26px; border-radius: 50px; font-size: 15px; font-weight: 700; z-index: 999; opacity: 0; transition: all 0.3s; white-space: nowrap; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <div class="logo-area">
+    <svg width="38" height="30" viewBox="0 0 80 50" fill="none">
+      <path d="M5 42 Q15 8 25 42 Q35 8 45 42 Q55 8 65 42 Q72 20 76 30" stroke="#0e7c7c" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+      <path d="M5 34 Q15 16 25 34 Q35 16 45 34 Q55 16 65 34" stroke="#0a1f44" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.4"/>
+    </svg>
+    <div class="logo-text">
+      <span class="brand">Mccormick Rigging</span>
+      <span class="sub">Rig Inspection</span>
+    </div>
+  </div>
+  <div class="save-indicator" id="saveIndicator">
+    <div class="save-dot"></div><span>Saved</span>
+  </div>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-steps">
+    <div class="step-pip active"></div><div class="step-pip"></div><div class="step-pip"></div>
+    <div class="step-pip"></div><div class="step-pip"></div><div class="step-pip"></div>
+    <div class="step-pip"></div><div class="step-pip"></div>
+  </div>
+  <div class="progress-label" id="progressLabel">Page 1 of 8 — Vessel Details</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- PAGE 1 -->
+<div class="page active" id="page1">
+  <div class="page-title">Vessel Details</div>
+  <div class="page-subtitle">Basic information about the vessel and owner</div>
+  <div class="field-group"><label class="field-label">Vessel Name</label><input class="field-input" type="text" id="vesselName" placeholder="e.g. Kahurangi" autocomplete="off"></div>
+  <div class="field-group"><label class="field-label">Owner Name</label><input class="field-input" type="text" id="ownerName" placeholder="Full name" autocomplete="off"></div>
+  <div class="field-row">
+    <div class="field-group"><label class="field-label">Type / Model</label><input class="field-input" type="text" id="boatType" placeholder="e.g. Beneteau 40" autocomplete="off"></div>
+    <div class="field-group"><label class="field-label">Year Built</label><input class="field-input" type="number" id="yearBuilt" placeholder="2008" min="1900" max="2030"></div>
+  </div>
+  <div class="field-group"><label class="field-label">Registration Number</label><input class="field-input" type="text" id="registration" placeholder="Hull / MMSI / Sail number" autocomplete="off"></div>
+  <div class="field-group"><label class="field-label">Owner Contact</label><input class="field-input" type="tel" id="ownerContact" placeholder="Phone or email" autocomplete="off"></div>
+  <div class="field-row">
+    <div class="field-group"><label class="field-label">Survey Location</label><input class="field-input" type="text" id="surveyLocation" placeholder="e.g. Tauranga" autocomplete="off"></div>
+    <div class="field-group"><label class="field-label">Survey Date</label><input class="field-input" type="date" id="surveyDate"></div>
+  </div>
+</div>
+
+<!-- PAGE 2 -->
+<div class="page" id="page2">
+  <div class="page-title">Rig Type &amp; Configuration</div>
+  <div class="page-subtitle">Mast arrangement and standing rig overview</div>
+  <div class="static-field-wrap"><div class="static-field"><span class="static-label">Mast Configuration</span><select class="static-select" id="mastConfig"><option value="">Select…</option><option>Sloop</option><option>Cutter</option><option>Ketch</option><option>Yawl</option><option>Schooner</option><option>Cat</option><option>Other</option></select></div></div>
+  <div class="static-field-wrap"><div class="static-field"><span class="static-label">Number of Masts</span><select class="static-select" id="numMasts"><option value="">Select…</option><option>1</option><option>2</option><option>3</option></select></div></div>
+  <div class="static-field-wrap"><div class="static-field"><span class="static-label">Spreader Config</span><select class="static-select" id="spreaderConfig"><option value="">Select…</option><option>Single spreader</option><option>Double spreader</option><option>Triple spreader</option><option>Swept back</option><option>Inline</option><option>None</option></select></div></div>
+  <div class="static-field-wrap"><div class="static-field"><span class="static-label">Forestay Type</span><select class="static-select" id="forestayType"><option value="">Select…</option><option>Furling headsail</option><option>Hanked on</option><option>Inner forestay</option><option>Furling + inner stay</option><option>Solent stay</option></select></div></div>
+  <div class="static-field-wrap"><div class="static-field"><span class="static-label">Backstay Type</span><select class="static-select" id="backstayType"><option value="">Select…</option><option>Fixed single backstay</option><option>Split backstay</option><option>Running backstays</option><option>Runners + fixed</option><option>Fractional — no backstay</option></select></div></div>
+  <div class="static-field-wrap"><div class="static-field"><span class="static-label">Rig Age (years)</span><input class="static-input" type="number" id="rigAge" placeholder="e.g. 12" min="0" max="80"></div></div>
+</div>
+
+<!-- PAGE 3 -->
+<div class="page" id="page3">
+  <div class="page-title">Spar Details</div>
+  <div class="page-subtitle">Mast and boom construction and condition</div>
+  <div class="section-heading">Mast</div>
+  <div class="static-field-wrap"><div class="static-field"><span class="static-label">Mast Manufacturer</span><input class="static-input" type="text" id="mastMfr" placeholder="e.g. Selden, Hall, Z-Spar"></div></div>
+  <div class="static-field-wrap"><div class="static-field"><span class="static-label">Year of Manufacture</span><input class="static-input" type="number" id="mastYear" placeholder="e.g. 2010" min="1950" max="2030"></div></div>
+  <div class="static-field-wrap"><div class="static-field"><span class="static-label">Material</span><select class="static-select" id="mastMaterial"><option value="">Select…</option><option>Aluminium</option><option>Carbon fibre</option><option>Stainless steel</option><option>Timber</option><option>Other</option></select></div></div>
+  <div class="field-group"><label class="field-label">Mast Condition &amp; Notes</label><textarea class="field-textarea" id="mastCondition" placeholder="Overall condition, visible damage, corrosion, welds, paint…"></textarea></div>
+  <div class="divider"></div>
+  <div class="section-heading">Boom</div>
+  <div class="static-field-wrap"><div class="static-field"><span class="static-label">Boom Manufacturer</span><input class="static-input" type="text" id="boomMfr" placeholder="e.g. Selden, Sparcraft"></div></div>
+  <div class="static-field-wrap"><div class="static-field"><span class="static-label">Year of Manufacture</span><input class="static-input" type="number" id="boomYear" placeholder="e.g. 2010" min="1950" max="2030"></div></div>
+  <div class="static-field-wrap"><div class="static-field"><span class="static-label">Material</span><select class="static-select" id="boomMaterial"><option value="">Select…</option><option>Aluminium</option><option>Carbon fibre</option><option>Stainless steel</option><option>Timber</option><option>Other</option></select></div></div>
+  <div class="field-group"><label class="field-label">Boom Condition &amp; Notes</label><textarea class="field-textarea" id="boomCondition" placeholder="Overall condition, end fittings, reefing system…"></textarea></div>
+</div>
+
+<!-- PAGE 4 -->
+<div class="page" id="page4">
+  <div class="page-title">Standing Rigging</div>
+  <div class="page-subtitle">Inspect each component — assign a condition code</div>
+  <div class="info-card"><span class="cond-pill cond-S-pill">S</span> Satisfactory &nbsp;<span class="cond-pill cond-M-pill">M</span> Monitor &nbsp;<span class="cond-pill cond-R-pill">R</span> Replace &nbsp;<span class="cond-pill cond-U-pill">U</span> Unsafe</div>
+  <div class="rigging-table-wrap"><table class="rigging-table"><thead><tr><th>Component</th><th>Type / Material</th><th>Age</th><th>Condition</th><th>Action Required</th><th>N/A</th></tr></thead><tbody id="standingBody"></tbody></table></div>
+</div>
+
+<!-- PAGE 5 -->
+<div class="page" id="page5">
+  <div class="page-title">Running Rigging</div>
+  <div class="page-subtitle">Inspect each component — assign a condition code</div>
+  <div class="info-card"><span class="cond-pill cond-S-pill">S</span> Satisfactory &nbsp;<span class="cond-pill cond-M-pill">M</span> Monitor &nbsp;<span class="cond-pill cond-R-pill">R</span> Replace &nbsp;<span class="cond-pill cond-U-pill">U</span> Unsafe</div>
+  <div class="rigging-table-wrap"><table class="rigging-table"><thead><tr><th>Component</th><th>Type / Material</th><th>Age</th><th>Condition</th><th>Action Required</th><th>N/A</th></tr></thead><tbody id="runningBody"></tbody></table></div>
+</div>
+
+<!-- PAGE 6 -->
+<div class="page" id="page6">
+  <div class="page-title">Deck Hardware &amp; Fittings</div>
+  <div class="page-subtitle">Condition assessment of deck-level rig components</div>
+  <div class="info-card"><span class="cond-pill cond-S-pill">S</span> Satisfactory &nbsp;<span class="cond-pill cond-M-pill">M</span> Monitor &nbsp;<span class="cond-pill cond-R-pill">R</span> Replace &nbsp;<span class="cond-pill cond-U-pill">U</span> Unsafe</div>
+  <div id="hardwareItems"></div>
+</div>
+
+<!-- PAGE 7 -->
+<div class="page" id="page7">
+  <div class="page-title">Mast Parameters</div>
+  <div class="page-subtitle">Step, collar and partner assessment</div>
+  <div id="mastParamItems"></div>
+</div>
+
+<!-- PAGE 8 -->
+<div class="page" id="page8">
+  <div class="page-title">Overall Rig Condition</div>
+  <div class="page-subtitle">Final assessment and surveyor sign-off</div>
+  <div class="section-heading">Overall Condition Rating</div>
+  <div class="overall-rating">
+    <button class="rating-btn" data-code="S" onclick="selectRating('S')"><span class="code">S</span><span>Satisfactory</span></button>
+    <button class="rating-btn" data-code="M" onclick="selectRating('M')"><span class="code">M</span><span>Monitor</span></button>
+    <button class="rating-btn" data-code="R" onclick="selectRating('R')"><span class="code">R</span><span>Replace items</span></button>
+    <button class="rating-btn" data-code="U" onclick="selectRating('U')"><span class="code">U</span><span>Unsafe</span></button>
+  </div>
+  <div class="summary-box"><label>Overall Assessment</label><textarea class="summary-textarea" id="overallAssessment" placeholder="Comprehensive summary of rig condition, key findings, priority actions…"></textarea></div>
+  <div class="summary-box"><label>Recommendations &amp; Next Steps</label><textarea class="summary-textarea" id="recommendations" placeholder="Recommended actions in order of priority, timeline for repairs…" style="min-height:120px"></textarea></div>
+  <div class="field-row" style="margin-bottom:20px">
+    <div class="field-group"><label class="field-label">Surveyor Name</label><input class="field-input" type="text" id="surveyorName" value="Scott McCormick"></div>
+    <div class="field-group"><label class="field-label">Date Signed</label><input class="field-input" type="date" id="signDate"></div>
+  </div>
+</div>
+
+<!-- NEW SURVEY MODAL -->
+<div id="modalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:32px 28px;max-width:340px;width:90%;margin:20px auto;box-shadow:0 8px 40px rgba(0,0,0,0.18);">
+    <div style="font-size:22px;font-weight:700;color:#0a1f44;margin-bottom:10px;">Start a new survey?</div>
+    <div style="font-size:16px;color:#4b5563;margin-bottom:28px;line-height:1.6;">This will clear all current data. Make sure you have generated the PDF first if you need it.</div>
+    <div style="display:flex;gap:12px;">
+      <button onclick="closeModal()" style="flex:1;padding:15px;border-radius:50px;border:2px solid #c8d0dc;background:#fff;font-family:inherit;font-size:16px;font-weight:700;color:#0a1f44;cursor:pointer;">Cancel</button>
+      <button onclick="confirmNewSurvey()" style="flex:1;padding:15px;border-radius:50px;border:none;background:#0a1f44;font-family:inherit;font-size:16px;font-weight:700;color:#fff;cursor:pointer;">Yes, clear it</button>
+    </div>
+  </div>
+</div>
+
+<div class="nav-bar">
+  <button class="btn btn-secondary" id="btnBack" onclick="navigate(-1)" style="display:none">← Back</button>
+  <button id="btnNew" onclick="openModal()" style="display:none;padding:16px 18px;border-radius:50px;border:2px solid #c8d0dc;background:#fff;font-family:inherit;font-size:15px;font-weight:700;color:#0a1f44;cursor:pointer;white-space:nowrap;">＋ New</button>
+  <button class="btn btn-primary" id="btnNext" onclick="navigate(1)">Next →</button>
+  <button class="btn btn-generate" id="btnGenerate" onclick="generatePDF()" style="display:none">⬇ Generate PDF</button>
+</div>
+
+<script>
+const STANDING = ['Forestay','Backstay','Port upper shroud','Starboard upper shroud','Port lower shroud (fwd)','Starboard lower shroud (fwd)','Port lower shroud (aft)','Starboard lower shroud (aft)','Inner forestay','Running backstay (port)','Running backstay (stbd)','Spreader attachment (port)','Spreader attachment (stbd)','Cap shroud terminals (port)','Cap shroud terminals (stbd)'];
+const RUNNING  = ['Main halyard','Jib / headsail halyard','Spinnaker halyard','Main sheet','Jib sheet (port)','Jib sheet (stbd)','Spinnaker sheet (port)','Spinnaker sheet (stbd)','Boom vang / kicker','Cunningham','Outhaul','Reefing line 1','Reefing line 2','Topping lift','Spinnaker pole uphaul','Spinnaker pole downhaul'];
+const HARDWARE = ['Chain plates','Turnbuckles / bottle screws','Toggles','Clevis pins and split pins','Furling drum','Gooseneck and vang','Mast base and step','Backstay adjuster'];
+const MPARAMS  = [{id:'stepType',label:'Mast step type',type:'select',options:['Keel stepped','Deck stepped','Tabernacle']},{id:'stepCondition',label:'Step condition',type:'textarea'},{id:'partnersCondition',label:'Partners / collar condition',type:'textarea'}];
+const PAGES    = ['Vessel Details','Rig Type & Config','Spar Details','Standing Rigging','Running Rigging','Deck Hardware & Fittings','Mast Parameters','Overall Summary'];
+const COPTS    = [{value:'',label:'Select…'},{value:'S',label:'S — Satisfactory'},{value:'M',label:'M — Monitor'},{value:'R',label:'R — Replace'},{value:'U',label:'U — Unsafe'}];
+
+let cur = 1, rating = '';
+
+function co() { return COPTS.map(o=>`<option value="${o.value}">${o.label}</option>`).join(''); }
+
+function buildTable(tbodyId, comps, pfx) {
+  const tb = document.getElementById(tbodyId); tb.innerHTML='';
+  comps.forEach((c,i) => {
+    const id=`${pfx}_${i}`, tr=document.createElement('tr'); tr.id=`row_${id}`;
+    tr.innerHTML=`<td class="component-name">${c}</td><td><input class="table-input" id="${id}_type" type="text" placeholder="e.g. 1×19 SS"></td><td><input class="table-input" id="${id}_age" type="number" min="0" max="60" placeholder="—" style="width:62px"></td><td><select class="table-select" id="${id}_cond" onchange="cc(this)">${co()}</select></td><td><input class="table-input" id="${id}_action" type="text" placeholder="Action…"></td><td style="text-align:center"><button class="na-btn" onclick="na('${id}',this)" type="button">N/A</button></td>`;
+    tb.appendChild(tr);
+  });
+}
+
+function cc(sel) { sel.className='table-select'; if(sel.value) sel.classList.add('cond-'+sel.value); }
+function na(id,btn) { btn.classList.toggle('active'); document.getElementById('row_'+id).classList.toggle('row-na',btn.classList.contains('active')); save(); }
+
+function buildHW() {
+  const w=document.getElementById('hardwareItems');
+  HARDWARE.forEach((item,i) => {
+    const id=`hw_${i}`, d=document.createElement('div'); d.className='hardware-item';
+    d.innerHTML=`<div class="hardware-item-name">${item}</div><div class="hardware-row"><div class="field-group" style="margin:0"><label class="field-label" style="font-size:13px">Condition</label><select class="field-select cond-sel" id="${id}_cond" onchange="cc(this)" style="font-size:16px;padding:12px 40px 12px 14px">${co()}</select></div><div class="field-group" style="margin:0"><label class="field-label" style="font-size:13px">Action Required</label><input class="field-input" id="${id}_action" type="text" placeholder="Action…" style="font-size:16px;padding:12px 14px"></div></div><div class="field-group" style="margin:0"><label class="field-label" style="font-size:13px">Notes</label><textarea class="field-textarea" id="${id}_notes" placeholder="Observations…" style="min-height:70px;font-size:16px;padding:12px 14px"></textarea></div>`;
+    w.appendChild(d);
+  });
+}
+
+function buildMP() {
+  const w=document.getElementById('mastParamItems');
+  MPARAMS.forEach(p => {
+    const d=document.createElement('div'); d.className='param-item';
+    const inp = p.type==='select'
+      ? `<select class="field-select" id="mp_${p.id}" style="font-size:16px"><option value="">Select…</option>${p.options.map(o=>`<option>${o}</option>`).join('')}</select>`
+      : `<textarea class="field-textarea" id="mp_${p.id}" placeholder="Notes on condition…" style="min-height:90px"></textarea>`;
+    d.innerHTML=`<div class="param-name">${p.label}</div>${inp}`;
+    w.appendChild(d);
+  });
+}
+
+function navigate(dir) {
+  document.getElementById('page'+cur).classList.remove('active');
+  cur+=dir;
+  document.getElementById('page'+cur).classList.add('active');
+  document.querySelectorAll('.step-pip').forEach((p,i)=>{ p.classList.remove('done','active'); if(i<cur-1) p.classList.add('done'); else if(i===cur-1) p.classList.add('active'); });
+  document.getElementById('progressLabel').textContent=`Page ${cur} of 8 — ${PAGES[cur-1]}`;
+  document.getElementById('btnBack').style.display    = cur>1 ? 'flex':'none';
+  document.getElementById('btnNew').style.display     = cur>1 ? 'flex':'none';
+  document.getElementById('btnNext').style.display    = cur<8 ? 'flex':'none';
+  document.getElementById('btnGenerate').style.display= cur===8?'flex':'none';
+  window.scrollTo(0,0); save();
+}
+
+function selectRating(code) { rating=code; document.querySelectorAll('.rating-btn').forEach(b=>b.classList.toggle('selected',b.dataset.code===code)); save(); }
+
+function gv(id){ const e=document.getElementById(id); return e?e.value:''; }
+function sv(id,v){ const e=document.getElementById(id); if(e&&v!==undefined) e.value=v; }
+
+function collect() {
+  const d={};
+  ['vesselName','ownerName','boatType','yearBuilt','registration','ownerContact','surveyLocation','surveyDate','mastConfig','numMasts','spreaderConfig','forestayType','backstayType','rigAge','mastMfr','mastYear','mastMaterial','mastCondition','boomMfr','boomYear','boomMaterial','boomCondition','overallAssessment','recommendations','surveyorName','signDate'].forEach(id=>d[id]=gv(id));
+  d.standing=STANDING.map((_,i)=>({type:gv(`st_${i}_type`),age:gv(`st_${i}_age`),cond:gv(`st_${i}_cond`),action:gv(`st_${i}_action`),na:document.querySelector(`#row_st_${i} .na-btn`)?.classList.contains('active')||false}));
+  d.running =RUNNING.map((_,i) =>({type:gv(`ru_${i}_type`),age:gv(`ru_${i}_age`),cond:gv(`ru_${i}_cond`),action:gv(`ru_${i}_action`),na:document.querySelector(`#row_ru_${i} .na-btn`)?.classList.contains('active')||false}));
+  d.hardware=HARDWARE.map((_,i)=>({cond:gv(`hw_${i}_cond`),action:gv(`hw_${i}_action`),notes:gv(`hw_${i}_notes`)}));
+  d.mastParams={stepType:gv('mp_stepType'),stepCondition:gv('mp_stepCondition'),partnersCondition:gv('mp_partnersCondition')};
+  d.rating=rating; return d;
+}
+
+function save() {
+  localStorage.setItem('mcr_survey',JSON.stringify(collect()));
+  const ind=document.getElementById('saveIndicator'); ind.classList.add('show');
+  clearTimeout(window._st); window._st=setTimeout(()=>ind.classList.remove('show'),1800);
+}
+
+function load() {
+  try {
+    const raw=localStorage.getItem('mcr_survey'); if(!raw) return;
+    const d=JSON.parse(raw);
+    ['vesselName','ownerName','boatType','yearBuilt','registration','ownerContact','surveyLocation','surveyDate','mastConfig','numMasts','spreaderConfig','forestayType','backstayType','rigAge','mastMfr','mastYear','mastMaterial','mastCondition','boomMfr','boomYear','boomMaterial','boomCondition','overallAssessment','recommendations','surveyorName','signDate'].forEach(id=>sv(id,d[id]));
+    if(d.standing) d.standing.forEach((r,i)=>{ sv(`st_${i}_type`,r.type);sv(`st_${i}_age`,r.age);sv(`st_${i}_cond`,r.cond);sv(`st_${i}_action`,r.action); const s=document.getElementById(`st_${i}_cond`);if(s)cc(s); if(r.na){const b=document.querySelector(`#row_st_${i} .na-btn`);if(b){b.classList.add('active');document.getElementById(`row_st_${i}`).classList.add('row-na');}} });
+    if(d.running)  d.running.forEach((r,i) =>{ sv(`ru_${i}_type`,r.type);sv(`ru_${i}_age`,r.age);sv(`ru_${i}_cond`,r.cond);sv(`ru_${i}_action`,r.action); const s=document.getElementById(`ru_${i}_cond`);if(s)cc(s); if(r.na){const b=document.querySelector(`#row_ru_${i} .na-btn`);if(b){b.classList.add('active');document.getElementById(`row_ru_${i}`).classList.add('row-na');}} });
+    if(d.hardware) d.hardware.forEach((h,i)=>{ sv(`hw_${i}_cond`,h.cond);sv(`hw_${i}_action`,h.action);sv(`hw_${i}_notes`,h.notes); const s=document.getElementById(`hw_${i}_cond`);if(s)cc(s); });
+    if(d.mastParams){sv('mp_stepType',d.mastParams.stepType);sv('mp_stepCondition',d.mastParams.stepCondition);sv('mp_partnersCondition',d.mastParams.partnersCondition);}
+    if(d.rating) selectRating(d.rating);
+  } catch(e){}
+}
+
+function generatePDF() {
+  const d = collect();
+  showToast('Generating PDF…');
+  setTimeout(() => {
+    try {
+      const COND_WORDS = { S:'Satisfactory', M:'Monitor', R:'Replace', U:'Unsafe', 'N/A':'N/A' };
+      function cw(c) { return COND_WORDS[c] || (c ? c : '—'); }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+      const NV=[10,31,68], TL=[14,124,124], WH=[255,255,255], LG=[244,246,249], MG=[150,165,190], DG=[50,65,100];
+      const W=210, M=16, CW=W-M*2; let y=0;
+
+      function hdr() {
+        doc.setFillColor(...NV); doc.rect(0,0,W,16,'F');
+        doc.setFillColor(...TL); doc.rect(0,16,W,2,'F');
+        doc.setTextColor(...TL); doc.setFontSize(8); doc.setFont('helvetica','bold');
+        doc.text('MCCORMICK RIGGING LTD', M, 10);
+        doc.setFont('helvetica','normal'); doc.setTextColor(...MG);
+        doc.text('Rig Inspection Report' + (d.vesselName?' · '+d.vesselName:'') + (d.surveyDate?' · '+d.surveyDate:'') + (d.surveyorName?' · '+d.surveyorName:''), M+54, 10);
+        y = 24;
+      }
+      function np() { doc.addPage(); hdr(); }
+      function chk(n) { if (y+n>272) np(); }
+      function sec(t) {
+        chk(14);
+        doc.setFillColor(...NV); doc.rect(M,y,CW,9,'F');
+        doc.setTextColor(...TL); doc.setFontSize(9); doc.setFont('helvetica','bold');
+        doc.text(t.toUpperCase(), M+3, y+6); y+=13;
+      }
+      function fr(label, value) {
+        chk(8);
+        doc.setFillColor(...LG); doc.rect(M,y,CW,7,'F');
+        doc.setTextColor(...DG); doc.setFontSize(7.5); doc.setFont('helvetica','bold');
+        doc.text(label, M+2, y+4.8);
+        doc.setFont('helvetica','normal'); doc.setTextColor(20,20,40);
+        doc.text(value||'—', M+52, y+4.8); y+=7.8;
+      }
+      function fp(l1,v1,l2,v2) {
+        chk(8);
+        const hw=CW/2-1;
+        doc.setFillColor(...LG); doc.rect(M,y,hw,7,'F'); doc.rect(M+hw+2,y,hw,7,'F');
+        doc.setTextColor(...DG); doc.setFontSize(7.5); doc.setFont('helvetica','bold');
+        doc.text(l1, M+2, y+4.8); doc.text(l2, M+hw+4, y+4.8);
+        doc.setFont('helvetica','normal'); doc.setTextColor(20,20,40);
+        doc.text(v1||'—', M+42, y+4.8); doc.text(v2||'—', M+hw+44, y+4.8); y+=7.8;
+      }
+      function tb(label, text) {
+        if (!text||!text.trim()) return;
+        chk(18);
+        doc.setTextColor(...DG); doc.setFontSize(7.5); doc.setFont('helvetica','bold');
+        doc.text(label, M, y+4); y+=6;
+        doc.setFont('helvetica','normal'); doc.setTextColor(20,20,40);
+        const lines=doc.splitTextToSize(text, CW);
+        lines.forEach(ln=>{ chk(5); doc.text(ln,M,y); y+=4.8; }); y+=3;
+      }
+
+      // ── COVER ──
+      doc.setFillColor(...NV); doc.rect(0,0,W,297,'F');
+      doc.setFillColor(...TL); doc.rect(0,0,8,297,'F'); doc.rect(0,110,W,3,'F');
+      doc.setDrawColor(255,255,255); doc.setLineWidth(0.5);
+      for (let i=0;i<6;i++) { doc.setLineDashPattern([3,2],i*1.5); doc.line(W-80+i*7,5,W-80+i*7+14,50); }
+      doc.setLineDashPattern([],0);
+      doc.setTextColor(...TL); doc.setFontSize(30); doc.setFont('helvetica','bold');
+      doc.text('MCCORMICK', 18, 70);
+      doc.setFontSize(14); doc.setTextColor(...WH); doc.setFont('helvetica','normal');
+      doc.text('R  I  G  G  I  N  G   L  T  D', 18, 83);
+      doc.setFontSize(18); doc.setFont('helvetica','bold'); doc.setTextColor(...WH);
+      doc.text('RIG INSPECTION REPORT', 18, 126);
+      if (d.vesselName) { const sz=d.vesselName.length>18?22:28; doc.setFontSize(sz); doc.setTextColor(...TL); doc.text(d.vesselName,18,146); }
+      doc.setFontSize(10); doc.setFont('helvetica','normal');
+      let dy=162;
+      [['Owner',d.ownerName],['Vessel Type',d.boatType],['Registration',d.registration],
+       ['Survey Location',d.surveyLocation],['Survey Date',d.surveyDate],
+       ['Surveyor',d.surveyorName||'Scott McCormick']
+      ].forEach(([lbl,val])=>{ doc.setTextColor(...TL); doc.setFont('helvetica','bold'); doc.text(lbl+':',18,dy); doc.setFont('helvetica','normal'); doc.setTextColor(...WH); doc.text(val||'—',58,dy); dy+=8; });
+      doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(...MG);
+      doc.text('CONDITION KEY:', 18, 262);
+      doc.setFont('helvetica','normal');
+      doc.text('S = Satisfactory   M = Monitor   R = Replace   U = Unsafe', 18, 268);
+      doc.setFontSize(7.5); doc.setTextColor(...MG);
+      doc.text('This report is confidential and prepared for the named vessel owner only.', 18, 285);
+
+      // ── PAGE 2: VESSEL + RIG + SPARS ──
+      np();
+      sec('1. Vessel Details');
+      fp('Vessel Name',d.vesselName,'Year Built',d.yearBuilt);
+      fp('Owner Name',d.ownerName,'Registration',d.registration);
+      fp('Type / Model',d.boatType,'Owner Contact',d.ownerContact);
+      fp('Survey Location',d.surveyLocation,'Survey Date',d.surveyDate); y+=4;
+
+      sec('2. Rig Type & Configuration');
+      fp('Mast Configuration',d.mastConfig,'Number of Masts',d.numMasts);
+      fp('Spreader Configuration',d.spreaderConfig,'Rig Age (years)',d.rigAge);
+      fp('Forestay Type',d.forestayType,'Backstay Type',d.backstayType); y+=4;
+
+      sec('3. Spar Details — Mast');
+      fp('Manufacturer',d.mastMfr,'Year of Manufacture',d.mastYear);
+      fr('Material',d.mastMaterial);
+      tb('Condition & Notes',d.mastCondition);
+
+      sec('3. Spar Details — Boom');
+      fp('Manufacturer',d.boomMfr,'Year of Manufacture',d.boomYear);
+      fr('Material',d.boomMaterial);
+      tb('Condition & Notes',d.boomCondition);
+
+      // ── PAGE 3: STANDING RIGGING ──
+      np(); sec('4. Standing Rigging');
+      doc.autoTable({
+        head:[['Component','Type / Material','Age (yrs)','Condition','Action Required']],
+        body: STANDING.map((comp,i)=>{ const r=d.standing?.[i]||{}; if(r.na) return[comp,'N/A','N/A','N/A','N/A']; return[comp,r.type||'—',r.age||'—',cw(r.cond),r.action||'—']; }),
+        startY:y, margin:{left:M,right:M},
+        styles:{fontSize:8.5,cellPadding:3,font:'helvetica',textColor:[20,20,40],lineColor:[210,218,228],lineWidth:0.2},
+        headStyles:{fillColor:NV,textColor:WH,fontStyle:'bold',fontSize:8.5,cellPadding:3.5},
+        alternateRowStyles:{fillColor:LG},
+        columnStyles:{0:{cellWidth:46,fontStyle:'bold',textColor:DG},1:{cellWidth:38},2:{cellWidth:16,halign:'center'},3:{cellWidth:28},4:{cellWidth:'auto'}}
+      });
+      y=doc.lastAutoTable.finalY+8;
+
+      // ── PAGE 4: RUNNING RIGGING ──
+      np(); sec('5. Running Rigging');
+      doc.autoTable({
+        head:[['Component','Type / Material','Age (yrs)','Condition','Action Required']],
+        body: RUNNING.map((comp,i)=>{ const r=d.running?.[i]||{}; if(r.na) return[comp,'N/A','N/A','N/A','N/A']; return[comp,r.type||'—',r.age||'—',cw(r.cond),r.action||'—']; }),
+        startY:y, margin:{left:M,right:M},
+        styles:{fontSize:8.5,cellPadding:3,font:'helvetica',textColor:[20,20,40],lineColor:[210,218,228],lineWidth:0.2},
+        headStyles:{fillColor:NV,textColor:WH,fontStyle:'bold',fontSize:8.5,cellPadding:3.5},
+        alternateRowStyles:{fillColor:LG},
+        columnStyles:{0:{cellWidth:46,fontStyle:'bold',textColor:DG},1:{cellWidth:38},2:{cellWidth:16,halign:'center'},3:{cellWidth:28},4:{cellWidth:'auto'}}
+      });
+      y=doc.lastAutoTable.finalY+8;
+
+      // ── PAGE 5: DECK HARDWARE + MAST PARAMS ──
+      np(); sec('6. Deck Hardware & Fittings');
+      doc.autoTable({
+        head:[['Item','Condition','Action Required','Notes']],
+        body: HARDWARE.map((item,i)=>{ const h=d.hardware?.[i]||{}; return[item,cw(h.cond),h.action||'—',h.notes||'']; }),
+        startY:y, margin:{left:M,right:M},
+        styles:{fontSize:8.5,cellPadding:3,font:'helvetica',textColor:[20,20,40],lineColor:[210,218,228],lineWidth:0.2},
+        headStyles:{fillColor:NV,textColor:WH,fontStyle:'bold',fontSize:8.5,cellPadding:3.5},
+        alternateRowStyles:{fillColor:LG},
+        columnStyles:{0:{cellWidth:52,fontStyle:'bold',textColor:DG},1:{cellWidth:26},2:{cellWidth:55},3:{cellWidth:'auto'}}
+      });
+      y=doc.lastAutoTable.finalY+8;
+
+      sec('7. Mast Parameters');
+      if (d.mastParams) {
+        fr('Mast Step Type',d.mastParams.stepType);
+        tb('Step Condition',d.mastParams.stepCondition);
+        tb('Partners / Collar Condition',d.mastParams.partnersCondition);
+      }
+
+      // ── PAGE 6: SUMMARY + SIGN-OFF ──
+      np(); sec('8. Overall Rig Condition & Assessment');
+      if (d.rating) {
+        chk(14);
+        const ratingLabels={S:'Satisfactory',M:'Monitor — items require attention',R:'Replace — items require replacement',U:'Unsafe — immediate action required'};
+        doc.setFillColor(...LG); doc.rect(M,y,CW,9,'F');
+        doc.setTextColor(...DG); doc.setFontSize(8); doc.setFont('helvetica','bold');
+        doc.text('Overall Condition:', M+2, y+5.8);
+        doc.setFont('helvetica','normal'); doc.setTextColor(20,20,40);
+        doc.text(ratingLabels[d.rating]||d.rating, M+40, y+5.8); y+=13;
+      }
+      tb('Overall Assessment',d.overallAssessment);
+      tb('Recommendations & Next Steps',d.recommendations);
+
+      // Signature
+      chk(52); y+=8;
+      doc.setDrawColor(...MG); doc.setLineWidth(0.5);
+      doc.line(M,y,M+80,y); doc.line(M+90,y,M+150,y);
+      y+=4;
+      doc.setTextColor(...DG); doc.setFontSize(8); doc.setFont('helvetica','bold');
+      doc.text(d.surveyorName||'Scott McCormick', M, y);
+      doc.text(d.signDate||'', M+90, y); y+=5;
+      doc.setFont('helvetica','normal'); doc.setTextColor(...MG); doc.setFontSize(7.5);
+      doc.text('Surveyor Signature', M, y); doc.text('Date', M+90, y); y+=10;
+      doc.setFontSize(8);
+      doc.text('Mccormick Rigging Ltd  —  This report is prepared solely for the named vessel owner.', M, y);
+
+      // Footers
+      const total=doc.internal.getNumberOfPages();
+      for (let pg=1;pg<=total;pg++) {
+        doc.setPage(pg);
+        doc.setFillColor(...NV); doc.rect(0,287,W,10,'F');
+        doc.setFillColor(...TL); doc.rect(0,287,W,1.5,'F');
+        doc.setTextColor(...MG); doc.setFontSize(7); doc.setFont('helvetica','normal');
+        doc.text('Mccormick Rigging Ltd — Rig Inspection Report', M, 293);
+        doc.text(`Page ${pg} of ${total}`, W-M, 293, {align:'right'});
+      }
+
+      // Download
+      const fname=`Rig-Inspection_${(d.vesselName||'Survey').replace(/\s+/g,'_')}_${d.surveyDate||'undated'}.pdf`;
+      const blob=doc.output('blob');
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url; a.download=fname; a.target='_blank';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(()=>URL.revokeObjectURL(url),5000);
+      showToast('PDF ready ✓');
+
+    } catch(e) { console.error(e); showToast('Error — please try again'); }
+  }, 100);
+}
+
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
+
+function openModal(){const m=document.getElementById('modalOverlay');m.style.display='flex';}
+function closeModal(){const m=document.getElementById('modalOverlay');m.style.display='none';}
+function confirmNewSurvey(){
+  closeModal();
+  localStorage.removeItem('mcr_survey');
+  // Reset all inputs
+  document.querySelectorAll('.field-input,.field-select,.field-textarea,.static-input,.static-select,.table-input,.summary-textarea').forEach(el=>{el.value='';});
+  document.querySelectorAll('.table-select').forEach(sel=>{sel.value='';sel.className='table-select';});
+  document.querySelectorAll('.field-select').forEach(sel=>{sel.value='';sel.className='field-select';});
+  document.querySelectorAll('.na-btn.active').forEach(btn=>{btn.classList.remove('active');});
+  document.querySelectorAll('.row-na').forEach(row=>{row.classList.remove('row-na');});
+  document.querySelectorAll('.rating-btn.selected').forEach(btn=>{btn.classList.remove('selected');});
+  rating='';
+  // Reset defaults
+  const today=new Date().toISOString().split('T')[0];
+  document.getElementById('surveyDate').value=today;
+  document.getElementById('signDate').value=today;
+  document.getElementById('surveyorName').value='Scott McCormick';
+  // Go back to page 1
+  document.getElementById('page'+cur).classList.remove('active');
+  cur=1;
+  document.getElementById('page1').classList.add('active');
+  document.getElementById('btnBack').style.display='none';
+  document.getElementById('btnNew').style.display='none';
+  document.getElementById('btnNext').style.display='flex';
+  document.getElementById('btnGenerate').style.display='none';
+  document.querySelectorAll('.step-pip').forEach((p,i)=>{p.classList.remove('done','active');if(i===0)p.classList.add('active');});
+  document.getElementById('progressLabel').textContent='Page 1 of 8 — Vessel Details';
+  window.scrollTo(0,0);
+  showToast('New survey started');
+}
+
+// INIT
+buildTable('standingBody',STANDING,'st');
+buildTable('runningBody',RUNNING,'ru');
+buildHW(); buildMP();
+const today=new Date().toISOString().split('T')[0];
+document.getElementById('surveyDate').value=today;
+document.getElementById('signDate').value=today;
+load();
+document.getElementById('btnBack').style.display='none';
+document.body.addEventListener('input',save);
+document.body.addEventListener('change',save);
+</script>
+</body>
+</html>
