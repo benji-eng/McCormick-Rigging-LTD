@@ -190,9 +190,9 @@
   <div class="progress-steps">
     <div class="step-pip active"></div><div class="step-pip"></div><div class="step-pip"></div>
     <div class="step-pip"></div><div class="step-pip"></div><div class="step-pip"></div>
-    <div class="step-pip"></div><div class="step-pip"></div>
+    <div class="step-pip"></div><div class="step-pip"></div><div class="step-pip"></div>
   </div>
-  <div class="progress-label" id="progressLabel">Page 1 of 8 — Vessel Details</div>
+  <div class="progress-label" id="progressLabel">Page 1 of 9 — Vessel Details</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -257,7 +257,7 @@
   <div class="page-title">Running Rigging</div>
   <div class="page-subtitle">Inspect each component — assign a condition code</div>
   <div class="info-card"><span class="cond-pill cond-S-pill">S</span> Satisfactory &nbsp;<span class="cond-pill cond-M-pill">M</span> Monitor &nbsp;<span class="cond-pill cond-R-pill">R</span> Replace &nbsp;<span class="cond-pill cond-U-pill">U</span> Unsafe</div>
-  <div class="rigging-table-wrap"><table class="rigging-table"><thead><tr><th>Component</th><th>Type / Material</th><th>Age</th><th>Condition</th><th>Action Required</th><th>N/A</th></tr></thead><tbody id="runningBody"></tbody></table></div>
+  <div class="rigging-table-wrap"><table class="rigging-table"><thead><tr><th>Component</th><th>Type / Material</th><th>Condition</th><th>Action Required</th><th>N/A</th></tr></thead><tbody id="runningBody"></tbody></table></div>
 </div>
 
 <!-- PAGE 6 -->
@@ -275,8 +275,20 @@
   <div id="mastParamItems"></div>
 </div>
 
-<!-- PAGE 8 -->
+<!-- PAGE 8 — PHOTOS -->
 <div class="page" id="page8">
+  <div class="page-title">Survey Photos</div>
+  <div class="page-subtitle">Upload photos from your gallery and add a note to each one</div>
+  <label for="photoUpload" style="display:flex;align-items:center;justify-content:center;gap:12px;background:var(--teal-bg);border:2px dashed var(--teal);border-radius:var(--radius);padding:22px 20px;cursor:pointer;margin-bottom:20px;font-size:16px;font-weight:700;color:var(--teal-dark);">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+    Tap to add photos
+  </label>
+  <input type="file" id="photoUpload" accept="image/*" multiple style="display:none" onchange="addPhotos(this)">
+  <div id="photoGrid" style="display:flex;flex-direction:column;gap:16px;"></div>
+</div>
+
+<!-- PAGE 9 — SIGN OFF -->
+<div class="page" id="page9">
   <div class="page-title">Overall Rig Condition</div>
   <div class="page-subtitle">Final assessment and surveyor sign-off</div>
   <div class="section-heading">Overall Condition Rating</div>
@@ -287,10 +299,20 @@
     <button class="rating-btn" data-code="U" onclick="selectRating('U')"><span class="code">U</span><span>Unsafe</span></button>
   </div>
   <div class="summary-box"><label>Overall Assessment</label><textarea class="summary-textarea" id="overallAssessment" placeholder="Comprehensive summary of rig condition, key findings, priority actions…"></textarea></div>
-  <div class="summary-box"><label>Recommendations &amp; Next Steps</label><textarea class="summary-textarea" id="recommendations" placeholder="Recommended actions in order of priority, timeline for repairs…" style="min-height:120px"></textarea></div>
-  <div class="field-row" style="margin-bottom:20px">
+
+  <div class="section-heading">Surveyor Sign-off</div>
+  <div class="field-row" style="margin-bottom:16px">
     <div class="field-group"><label class="field-label">Surveyor Name</label><input class="field-input" type="text" id="surveyorName" value="Scott McCormick"></div>
     <div class="field-group"><label class="field-label">Date Signed</label><input class="field-input" type="date" id="signDate"></div>
+  </div>
+
+  <div class="summary-box">
+    <label>E-Signature</label>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Sign below using your finger or stylus</p>
+    <canvas id="sigCanvas" width="560" height="160" style="width:100%;height:160px;border:2px solid var(--border);border-radius:var(--radius-sm);background:#fff;touch-action:none;cursor:crosshair;display:block"></canvas>
+    <div style="display:flex;gap:10px;margin-top:10px">
+      <button onclick="clearSig()" type="button" style="padding:10px 20px;border-radius:50px;border:2px solid var(--border);background:var(--white);font-family:inherit;font-size:14px;font-weight:700;color:var(--navy);cursor:pointer">Clear signature</button>
+    </div>
   </div>
 </div>
 
@@ -314,22 +336,24 @@
 </div>
 
 <script>
-const STANDING = ['Forestay','Backstay','Port upper shroud','Starboard upper shroud','Port lower shroud (fwd)','Starboard lower shroud (fwd)','Port lower shroud (aft)','Starboard lower shroud (aft)','Inner forestay','Running backstay (port)','Running backstay (stbd)','Spreader attachment (port)','Spreader attachment (stbd)','Cap shroud terminals (port)','Cap shroud terminals (stbd)'];
-const RUNNING  = ['Main halyard','Jib / headsail halyard','Spinnaker halyard','Main sheet','Jib sheet (port)','Jib sheet (stbd)','Spinnaker sheet (port)','Spinnaker sheet (stbd)','Boom vang / kicker','Cunningham','Outhaul','Reefing line 1','Reefing line 2','Topping lift','Spinnaker pole uphaul','Spinnaker pole downhaul'];
+const STANDING = ['Forestay','Backstay','Cap shroud','Lower shroud','Intermediate shroud','Inner forestay','Running backstay','Triatic stay','Martingale stay','Diamond stay'];
+const RUNNING  = ['Main halyard','Jib / headsail halyard','Spinnaker halyard','Main sheet','Boom vang / kicker','Topping lift','Spinnaker pole uphaul','Spinnaker pole downhaul'];
+
 const HARDWARE = ['Chain plates','Turnbuckles / bottle screws','Toggles','Clevis pins and split pins','Furling drum','Gooseneck and vang','Mast base and step','Backstay adjuster'];
 const MPARAMS  = [{id:'stepType',label:'Mast step type',type:'select',options:['Keel stepped','Deck stepped','Tabernacle']},{id:'stepCondition',label:'Step condition',type:'textarea'},{id:'partnersCondition',label:'Partners / collar condition',type:'textarea'}];
-const PAGES    = ['Vessel Details','Rig Type & Config','Spar Details','Standing Rigging','Running Rigging','Deck Hardware & Fittings','Mast Parameters','Overall Summary'];
+const PAGES    = ['Vessel Details','Rig Type & Config','Spar Details','Standing Rigging','Running Rigging','Deck Hardware & Fittings','Mast Parameters','Survey Photos','Overall Summary'];
 const COPTS    = [{value:'',label:'Select…'},{value:'S',label:'S — Satisfactory'},{value:'M',label:'M — Monitor'},{value:'R',label:'R — Replace'},{value:'U',label:'U — Unsafe'}];
 
 let cur = 1, rating = '';
 
 function co() { return COPTS.map(o=>`<option value="${o.value}">${o.label}</option>`).join(''); }
 
-function buildTable(tbodyId, comps, pfx) {
+function buildTable(tbodyId, comps, pfx, hideAge) {
   const tb = document.getElementById(tbodyId); tb.innerHTML='';
   comps.forEach((c,i) => {
     const id=`${pfx}_${i}`, tr=document.createElement('tr'); tr.id=`row_${id}`;
-    tr.innerHTML=`<td class="component-name">${c}</td><td><input class="table-input" id="${id}_type" type="text" placeholder="e.g. 1×19 SS"></td><td><input class="table-input" id="${id}_age" type="number" min="0" max="60" placeholder="—" style="width:62px"></td><td><select class="table-select" id="${id}_cond" onchange="cc(this)">${co()}</select></td><td><input class="table-input" id="${id}_action" type="text" placeholder="Action…"></td><td style="text-align:center"><button class="na-btn" onclick="na('${id}',this)" type="button">N/A</button></td>`;
+    const ageCell = hideAge ? `` : `<td><input class="table-input" id="${id}_age" type="number" min="0" max="60" placeholder="—" style="width:62px"></td>`;
+    tr.innerHTML=`<td class="component-name">${c}</td><td><input class="table-input" id="${id}_type" type="text" placeholder="e.g. polyester braid"></td>${ageCell}<td><select class="table-select" id="${id}_cond" onchange="cc(this)">${co()}</select></td><td><input class="table-input" id="${id}_action" type="text" placeholder="Action…"></td><td style="text-align:center"><button class="na-btn" onclick="na('${id}',this)" type="button">N/A</button></td>`;
     tb.appendChild(tr);
   });
 }
@@ -340,10 +364,22 @@ function na(id,btn) { btn.classList.toggle('active'); document.getElementById('r
 function buildHW() {
   const w=document.getElementById('hardwareItems');
   HARDWARE.forEach((item,i) => {
-    const id=`hw_${i}`, d=document.createElement('div'); d.className='hardware-item';
-    d.innerHTML=`<div class="hardware-item-name">${item}</div><div class="hardware-row"><div class="field-group" style="margin:0"><label class="field-label" style="font-size:13px">Condition</label><select class="field-select cond-sel" id="${id}_cond" onchange="cc(this)" style="font-size:16px;padding:12px 40px 12px 14px">${co()}</select></div><div class="field-group" style="margin:0"><label class="field-label" style="font-size:13px">Action Required</label><input class="field-input" id="${id}_action" type="text" placeholder="Action…" style="font-size:16px;padding:12px 14px"></div></div><div class="field-group" style="margin:0"><label class="field-label" style="font-size:13px">Notes</label><textarea class="field-textarea" id="${id}_notes" placeholder="Observations…" style="min-height:70px;font-size:16px;padding:12px 14px"></textarea></div>`;
+    const id=`hw_${i}`, d=document.createElement('div'); d.className='hardware-item'; d.id=`hwitem_${i}`;
+    const isLast = i === HARDWARE.length - 1;
+    const naBtn = isLast ? `<button class="na-btn" id="${id}_na" onclick="hwNA(${i},this)" type="button" style="margin-bottom:14px;width:auto;padding:8px 20px">Mark as N/A — not fitted</button>` : '';
+    d.innerHTML=`<div class="hardware-item-name" style="display:flex;align-items:center;justify-content:space-between">${item}${isLast ? `<button class="na-btn" id="${id}_na" onclick="hwNA(${i},this)" type="button" style="font-size:12px;padding:6px 12px">N/A</button>` : ''}</div><div id="${id}_fields"><div class="hardware-row"><div class="field-group" style="margin:0"><label class="field-label" style="font-size:13px">Condition</label><select class="field-select cond-sel" id="${id}_cond" onchange="cc(this)" style="font-size:16px;padding:12px 40px 12px 14px">${co()}</select></div><div class="field-group" style="margin:0"><label class="field-label" style="font-size:13px">Action Required</label><input class="field-input" id="${id}_action" type="text" placeholder="Action…" style="font-size:16px;padding:12px 14px"></div></div><div class="field-group" style="margin:0"><label class="field-label" style="font-size:13px">Notes</label><textarea class="field-textarea" id="${id}_notes" placeholder="Observations…" style="min-height:70px;font-size:16px;padding:12px 14px"></textarea></div></div>`;
     w.appendChild(d);
   });
+}
+
+function hwNA(i, btn) {
+  btn.classList.toggle('active');
+  const fields = document.getElementById(`hw_${i}_fields`);
+  const isNA = btn.classList.contains('active');
+  fields.style.opacity = isNA ? '0.2' : '1';
+  fields.style.pointerEvents = isNA ? 'none' : 'auto';
+  btn.textContent = isNA ? 'Fitted — undo N/A' : 'N/A';
+  save();
 }
 
 function buildMP() {
@@ -363,12 +399,99 @@ function navigate(dir) {
   cur+=dir;
   document.getElementById('page'+cur).classList.add('active');
   document.querySelectorAll('.step-pip').forEach((p,i)=>{ p.classList.remove('done','active'); if(i<cur-1) p.classList.add('done'); else if(i===cur-1) p.classList.add('active'); });
-  document.getElementById('progressLabel').textContent=`Page ${cur} of 8 — ${PAGES[cur-1]}`;
+  document.getElementById('progressLabel').textContent=`Page ${cur} of 9 — ${PAGES[cur-1]}`;
   document.getElementById('btnBack').style.display    = cur>1 ? 'flex':'none';
   document.getElementById('btnNew').style.display     = cur>1 ? 'flex':'none';
-  document.getElementById('btnNext').style.display    = cur<8 ? 'flex':'none';
-  document.getElementById('btnGenerate').style.display= cur===8?'flex':'none';
+  document.getElementById('btnNext').style.display    = cur<9 ? 'flex':'none';
+  document.getElementById('btnGenerate').style.display= cur===9?'flex':'none';
   window.scrollTo(0,0); save();
+}
+
+let photos = [];
+
+function addPhotos(input) {
+  const files = Array.from(input.files);
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const id = Date.now() + Math.random();
+      photos.push({ id, dataUrl: e.target.result, caption: '' });
+      renderPhotos();
+      save();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function renderPhotos() {
+  const grid = document.getElementById('photoGrid');
+  grid.innerHTML = '';
+  photos.forEach((p, i) => {
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--white);border:2px solid var(--border);border-radius:var(--radius);overflow:hidden;';
+    card.innerHTML = `
+      <div style="position:relative;">
+        <img src="${p.dataUrl}" style="width:100%;max-height:260px;object-fit:cover;display:block;">
+        <button onclick="removePhoto(${i})" type="button" style="position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;border:none;background:rgba(10,31,68,0.75);color:#fff;font-size:18px;line-height:1;cursor:pointer;font-family:inherit;font-weight:700;">×</button>
+        <div style="position:absolute;bottom:8px;left:8px;background:rgba(10,31,68,0.6);color:#fff;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;">Photo ${i+1}</div>
+      </div>
+      <div style="padding:12px 14px;">
+        <label style="display:block;font-size:12px;font-weight:700;color:var(--navy);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em;">Caption / Notes</label>
+        <textarea oninput="updateCaption(${i},this.value)" style="width:100%;background:var(--page-bg);border:2px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;padding:10px 12px;outline:none;resize:vertical;min-height:72px;line-height:1.5;color:var(--text);" placeholder="Describe what this photo shows…">${p.caption}</textarea>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+function updateCaption(i, val) {
+  if (photos[i]) { photos[i].caption = val; save(); }
+}
+
+function removePhoto(i) {
+  photos.splice(i, 1);
+  renderPhotos();
+  save();
+}
+
+function initSig() {
+  const canvas = document.getElementById('sigCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let drawing = false;
+  function pos(e) {
+    const r = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / r.width;
+    const scaleY = canvas.height / r.height;
+    const src = e.touches ? e.touches[0] : e;
+    return { x: (src.clientX - r.left) * scaleX, y: (src.clientY - r.top) * scaleY };
+  }
+  function start(e) { e.preventDefault(); drawing = true; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }
+  function move(e) { e.preventDefault(); if (!drawing) return; const p = pos(e); ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.strokeStyle = '#0a1f44'; ctx.lineTo(p.x, p.y); ctx.stroke(); save(); }
+  function end(e) { e.preventDefault(); drawing = false; }
+  canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', move); canvas.addEventListener('mouseup', end);
+  canvas.addEventListener('touchstart', start, {passive:false}); canvas.addEventListener('touchmove', move, {passive:false}); canvas.addEventListener('touchend', end);
+}
+
+function clearSig() {
+  const canvas = document.getElementById('sigCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  save();
+}
+
+function getSigData() {
+  const canvas = document.getElementById('sigCanvas');
+  return canvas ? canvas.toDataURL('image/png') : null;
+}
+
+function loadSig(dataUrl) {
+  if (!dataUrl) return;
+  const canvas = document.getElementById('sigCanvas');
+  const ctx = canvas.getContext('2d');
+  const img = new Image();
+  img.onload = () => ctx.drawImage(img, 0, 0);
+  img.src = dataUrl;
 }
 
 function selectRating(code) { rating=code; document.querySelectorAll('.rating-btn').forEach(b=>b.classList.toggle('selected',b.dataset.code===code)); save(); }
@@ -378,12 +501,16 @@ function sv(id,v){ const e=document.getElementById(id); if(e&&v!==undefined) e.v
 
 function collect() {
   const d={};
-  ['vesselName','ownerName','boatType','yearBuilt','registration','ownerContact','surveyLocation','surveyDate','mastConfig','numMasts','spreaderConfig','forestayType','backstayType','rigAge','mastMfr','mastYear','mastMaterial','mastCondition','boomMfr','boomYear','boomMaterial','boomCondition','overallAssessment','recommendations','surveyorName','signDate'].forEach(id=>d[id]=gv(id));
+  ['vesselName','ownerName','boatType','yearBuilt','registration','ownerContact','surveyLocation','surveyDate','mastConfig','numMasts','spreaderConfig','forestayType','backstayType','rigAge','mastMfr','mastYear','mastMaterial','mastCondition','boomMfr','boomYear','boomMaterial','boomCondition','overallAssessment','surveyorName','signDate'].forEach(id=>d[id]=gv(id));
   d.standing=STANDING.map((_,i)=>({type:gv(`st_${i}_type`),age:gv(`st_${i}_age`),cond:gv(`st_${i}_cond`),action:gv(`st_${i}_action`),na:document.querySelector(`#row_st_${i} .na-btn`)?.classList.contains('active')||false}));
-  d.running =RUNNING.map((_,i) =>({type:gv(`ru_${i}_type`),age:gv(`ru_${i}_age`),cond:gv(`ru_${i}_cond`),action:gv(`ru_${i}_action`),na:document.querySelector(`#row_ru_${i} .na-btn`)?.classList.contains('active')||false}));
+  d.running =RUNNING.map((_,i) =>({type:gv(`ru_${i}_type`),cond:gv(`ru_${i}_cond`),action:gv(`ru_${i}_action`),na:document.querySelector(`#row_ru_${i} .na-btn`)?.classList.contains('active')||false}));
+  d.hwLastNA = document.getElementById('hw_7_na')?.classList.contains('active')||false;
   d.hardware=HARDWARE.map((_,i)=>({cond:gv(`hw_${i}_cond`),action:gv(`hw_${i}_action`),notes:gv(`hw_${i}_notes`)}));
   d.mastParams={stepType:gv('mp_stepType'),stepCondition:gv('mp_stepCondition'),partnersCondition:gv('mp_partnersCondition')};
-  d.rating=rating; return d;
+  d.rating=rating;
+  d.sigData=getSigData();
+  d.photoCaptions = photos.map(p => p.caption);
+  return d;
 }
 
 function save() {
@@ -396,11 +523,12 @@ function load() {
   try {
     const raw=localStorage.getItem('mcr_survey'); if(!raw) return;
     const d=JSON.parse(raw);
-    ['vesselName','ownerName','boatType','yearBuilt','registration','ownerContact','surveyLocation','surveyDate','mastConfig','numMasts','spreaderConfig','forestayType','backstayType','rigAge','mastMfr','mastYear','mastMaterial','mastCondition','boomMfr','boomYear','boomMaterial','boomCondition','overallAssessment','recommendations','surveyorName','signDate'].forEach(id=>sv(id,d[id]));
+    ['vesselName','ownerName','boatType','yearBuilt','registration','ownerContact','surveyLocation','surveyDate','mastConfig','numMasts','spreaderConfig','forestayType','backstayType','rigAge','mastMfr','mastYear','mastMaterial','mastCondition','boomMfr','boomYear','boomMaterial','boomCondition','overallAssessment','surveyorName','signDate'].forEach(id=>sv(id,d[id]));
     if(d.standing) d.standing.forEach((r,i)=>{ sv(`st_${i}_type`,r.type);sv(`st_${i}_age`,r.age);sv(`st_${i}_cond`,r.cond);sv(`st_${i}_action`,r.action); const s=document.getElementById(`st_${i}_cond`);if(s)cc(s); if(r.na){const b=document.querySelector(`#row_st_${i} .na-btn`);if(b){b.classList.add('active');document.getElementById(`row_st_${i}`).classList.add('row-na');}} });
-    if(d.running)  d.running.forEach((r,i) =>{ sv(`ru_${i}_type`,r.type);sv(`ru_${i}_age`,r.age);sv(`ru_${i}_cond`,r.cond);sv(`ru_${i}_action`,r.action); const s=document.getElementById(`ru_${i}_cond`);if(s)cc(s); if(r.na){const b=document.querySelector(`#row_ru_${i} .na-btn`);if(b){b.classList.add('active');document.getElementById(`row_ru_${i}`).classList.add('row-na');}} });
+    if(d.running)  d.running.forEach((r,i) =>{ sv(`ru_${i}_type`,r.type);sv(`ru_${i}_cond`,r.cond);sv(`ru_${i}_action`,r.action); const s=document.getElementById(`ru_${i}_cond`);if(s)cc(s); if(r.na){const b=document.querySelector(`#row_ru_${i} .na-btn`);if(b){b.classList.add('active');document.getElementById(`row_ru_${i}`).classList.add('row-na');}} });
     if(d.hardware) d.hardware.forEach((h,i)=>{ sv(`hw_${i}_cond`,h.cond);sv(`hw_${i}_action`,h.action);sv(`hw_${i}_notes`,h.notes); const s=document.getElementById(`hw_${i}_cond`);if(s)cc(s); });
     if(d.mastParams){sv('mp_stepType',d.mastParams.stepType);sv('mp_stepCondition',d.mastParams.stepCondition);sv('mp_partnersCondition',d.mastParams.partnersCondition);}
+    if(d.sigData) setTimeout(()=>loadSig(d.sigData), 100);
     if(d.rating) selectRating(d.rating);
   } catch(e){}
 }
@@ -525,11 +653,10 @@ function generatePDF() {
       });
       y=doc.lastAutoTable.finalY+8;
 
-      // ── PAGE 4: RUNNING RIGGING ──
       np(); sec('5. Running Rigging');
       doc.autoTable({
-        head:[['Component','Type / Material','Age (yrs)','Condition','Action Required']],
-        body: RUNNING.map((comp,i)=>{ const r=d.running?.[i]||{}; if(r.na) return[comp,'N/A','N/A','N/A','N/A']; return[comp,r.type||'—',r.age||'—',cw(r.cond),r.action||'—']; }),
+        head:[['Component','Type / Material','Condition','Action Required']],
+        body: RUNNING.map((comp,i)=>{ const r=d.running?.[i]||{}; if(r.na) return[comp,'N/A','N/A','N/A']; return[comp,r.type||'—',cw(r.cond),r.action||'—']; }),
         startY:y, margin:{left:M,right:M},
         styles:{fontSize:8.5,cellPadding:3,font:'helvetica',textColor:[20,20,40],lineColor:[210,218,228],lineWidth:0.2},
         headStyles:{fillColor:NV,textColor:WH,fontStyle:'bold',fontSize:8.5,cellPadding:3.5},
@@ -570,19 +697,50 @@ function generatePDF() {
         doc.text(ratingLabels[d.rating]||d.rating, M+40, y+5.8); y+=13;
       }
       tb('Overall Assessment',d.overallAssessment);
-      tb('Recommendations & Next Steps',d.recommendations);
 
-      // Signature
-      chk(52); y+=8;
-      doc.setDrawColor(...MG); doc.setLineWidth(0.5);
-      doc.line(M,y,M+80,y); doc.line(M+90,y,M+150,y);
-      y+=4;
+      // Photo captions section
+      if (d.photoCaptions && d.photoCaptions.some(c=>c&&c.trim())) {
+        chk(16); y+=4;
+        doc.setFillColor(...NV); doc.rect(M,y,CW,9,'F');
+        doc.setTextColor(...TL); doc.setFontSize(9); doc.setFont('helvetica','bold');
+        doc.text('Survey Photos', M+3, y+6); y+=13;
+        d.photoCaptions.forEach((cap,i)=>{ if(cap&&cap.trim()) tb(`Photo ${i+1}`,cap); });
+      }
+
+      // Signature block
+      chk(62); y+=8;
       doc.setTextColor(...DG); doc.setFontSize(8); doc.setFont('helvetica','bold');
-      doc.text(d.surveyorName||'Scott McCormick', M, y);
-      doc.text(d.signDate||'', M+90, y); y+=5;
+      doc.text('SURVEYOR DECLARATION', M, y); y+=5;
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(20,20,40);
+      doc.text('I confirm that this inspection was carried out to the best of my professional ability and that the findings recorded herein are accurate at the time of inspection.', M, y, {maxWidth:CW}); y+=10;
+
+      doc.setTextColor(...DG); doc.setFontSize(8); doc.setFont('helvetica','bold');
+      doc.text(d.surveyorName||'Scott McCormick', M, y); y+=3;
+      doc.text(d.signDate||'', M+90, y-3);
       doc.setFont('helvetica','normal'); doc.setTextColor(...MG); doc.setFontSize(7.5);
-      doc.text('Surveyor Signature', M, y); doc.text('Date', M+90, y); y+=10;
-      doc.setFontSize(8);
+      doc.text('Surveyor', M, y+1); doc.text('Date signed', M+90, y+1); y+=8;
+
+      // E-signature image
+      if (d.sigData && d.sigData !== 'data:,') {
+        try {
+          chk(36);
+          doc.setDrawColor(...MG); doc.setLineWidth(0.3);
+          doc.rect(M, y, 80, 28);
+          doc.addImage(d.sigData, 'PNG', M+1, y+1, 78, 26);
+          doc.setTextColor(...MG); doc.setFontSize(7);
+          doc.text('Signature', M+1, y+31);
+          y += 36;
+        } catch(e) {}
+      } else {
+        doc.setDrawColor(...MG); doc.setLineWidth(0.5);
+        doc.line(M, y+20, M+80, y+20);
+        doc.setTextColor(...MG); doc.setFontSize(7.5);
+        doc.text('Signature', M, y+25);
+        y += 30;
+      }
+
+      y += 4;
+      doc.setFontSize(8); doc.setTextColor(...MG);
       doc.text('Mccormick Rigging Ltd  —  This report is prepared solely for the named vessel owner.', M, y);
 
       // Footers
@@ -625,6 +783,7 @@ function confirmNewSurvey(){
   document.querySelectorAll('.row-na').forEach(row=>{row.classList.remove('row-na');});
   document.querySelectorAll('.rating-btn.selected').forEach(btn=>{btn.classList.remove('selected');});
   rating='';
+  photos=[]; renderPhotos(); clearSig();
   // Reset defaults
   const today=new Date().toISOString().split('T')[0];
   document.getElementById('surveyDate').value=today;
@@ -639,19 +798,21 @@ function confirmNewSurvey(){
   document.getElementById('btnNext').style.display='flex';
   document.getElementById('btnGenerate').style.display='none';
   document.querySelectorAll('.step-pip').forEach((p,i)=>{p.classList.remove('done','active');if(i===0)p.classList.add('active');});
-  document.getElementById('progressLabel').textContent='Page 1 of 8 — Vessel Details';
+  document.getElementById('progressLabel').textContent='Page 1 of 9 — Vessel Details';
   window.scrollTo(0,0);
   showToast('New survey started');
 }
 
 // INIT
-buildTable('standingBody',STANDING,'st');
-buildTable('runningBody',RUNNING,'ru');
+buildTable('standingBody',STANDING,'st',false);
+buildTable('runningBody',RUNNING,'ru',true);
 buildHW(); buildMP();
 const today=new Date().toISOString().split('T')[0];
 document.getElementById('surveyDate').value=today;
 document.getElementById('signDate').value=today;
 load();
+initSig();
+renderPhotos();
 document.getElementById('btnBack').style.display='none';
 document.body.addEventListener('input',save);
 document.body.addEventListener('change',save);
