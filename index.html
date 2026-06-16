@@ -409,15 +409,62 @@ function navigate(dir) {
 
 let photos = [];
 
+// Resize + re-encode each upload as JPEG so storage and the PDF stay reasonable
+function compressImage(dataUrl, maxDim = 1600, quality = 0.72) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > height && width > maxDim) { height = Math.round(height * maxDim / width); width = maxDim; }
+      else if (height >= width && height > maxDim) { width = Math.round(width * maxDim / height); height = maxDim; }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      resolve({ dataUrl: canvas.toDataURL('image/jpeg', quality), w: width, h: height });
+    };
+    img.src = dataUrl;
+  });
+}
+
+// Photos live in IndexedDB (localStorage is too small for multi-MB images)
+const PHOTO_DB = 'mcr_db', PHOTO_STORE = 'photos', PHOTO_KEY = 'current';
+
+function _openPhotoDB() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(PHOTO_DB, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(PHOTO_STORE);
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+function savePhotos() {
+  _openPhotoDB().then(db => {
+    const tx = db.transaction(PHOTO_STORE, 'readwrite');
+    tx.objectStore(PHOTO_STORE).put(photos, PHOTO_KEY);
+  }).catch(() => {});
+}
+function loadPhotos() {
+  return _openPhotoDB().then(db => new Promise(res => {
+    const g = db.transaction(PHOTO_STORE, 'readonly').objectStore(PHOTO_STORE).get(PHOTO_KEY);
+    g.onsuccess = () => res(g.result || []);
+    g.onerror = () => res([]);
+  })).catch(() => []);
+}
+function clearPhotos() {
+  _openPhotoDB().then(db => {
+    db.transaction(PHOTO_STORE, 'readwrite').objectStore(PHOTO_STORE).put([], PHOTO_KEY);
+  }).catch(() => {});
+}
+
 function addPhotos(input) {
   const files = Array.from(input.files);
   files.forEach(file => {
     const reader = new FileReader();
-    reader.onload = e => {
-      const id = Date.now() + Math.random();
-      photos.push({ id, dataUrl: e.target.result, caption: '' });
+    reader.onload = async e => {
+      const { dataUrl, w, h } = await compressImage(e.target.result);
+      photos.push({ id: Date.now() + Math.random(), dataUrl, caption: '', w, h });
       renderPhotos();
-      save();
+      savePhotos();
     };
     reader.readAsDataURL(file);
   });
@@ -445,13 +492,13 @@ function renderPhotos() {
 }
 
 function updateCaption(i, val) {
-  if (photos[i]) { photos[i].caption = val; save(); }
+  if (photos[i]) { photos[i].caption = val; savePhotos(); }
 }
 
 function removePhoto(i) {
   photos.splice(i, 1);
   renderPhotos();
-  save();
+  savePhotos();
 }
 
 function initSig() {
@@ -509,7 +556,6 @@ function collect() {
   d.mastParams={stepType:gv('mp_stepType'),stepCondition:gv('mp_stepCondition'),partnersCondition:gv('mp_partnersCondition')};
   d.rating=rating;
   d.sigData=getSigData();
-  d.photoCaptions = photos.map(p => p.caption);
   return d;
 }
 
@@ -698,13 +744,30 @@ function generatePDF() {
       }
       tb('Overall Assessment',d.overallAssessment);
 
-      // Photo captions section
-      if (d.photoCaptions && d.photoCaptions.some(c=>c&&c.trim())) {
-        chk(16); y+=4;
-        doc.setFillColor(...NV); doc.rect(M,y,CW,9,'F');
-        doc.setTextColor(...TL); doc.setFontSize(9); doc.setFont('helvetica','bold');
-        doc.text('Survey Photos', M+3, y+6); y+=13;
-        d.photoCaptions.forEach((cap,i)=>{ if(cap&&cap.trim()) tb(`Photo ${i+1}`,cap); });
+      // Survey photos — actual images + captions
+      if (photos && photos.length) {
+        np(); sec('Survey Photos');
+        photos.forEach((p, i) => {
+          // Fit inside content width, cap height so it never exceeds the page
+          let dispW = CW, dispH = CW * (p.h / p.w);
+          const maxH = 150;
+          if (dispH > maxH) { dispH = maxH; dispW = maxH * (p.w / p.h); }
+
+          chk(dispH + 14);                       // page-break if it won't fit
+          const x = M + (CW - dispW) / 2;        // centre horizontally
+          doc.addImage(p.dataUrl, 'JPEG', x, y, dispW, dispH);
+          y += dispH + 5;
+
+          // Caption / label under the image
+          doc.setTextColor(...DG); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+          doc.text(`Photo ${i + 1}`, M, y); y += 4.5;
+          if (p.caption && p.caption.trim()) {
+            doc.setFont('helvetica', 'normal'); doc.setTextColor(20, 20, 40);
+            const lines = doc.splitTextToSize(p.caption.trim(), CW);
+            lines.forEach(ln => { chk(5); doc.text(ln, M, y); y += 4.5; });
+          }
+          y += 8;
+        });
       }
 
       // Signature block
@@ -783,7 +846,7 @@ function confirmNewSurvey(){
   document.querySelectorAll('.row-na').forEach(row=>{row.classList.remove('row-na');});
   document.querySelectorAll('.rating-btn.selected').forEach(btn=>{btn.classList.remove('selected');});
   rating='';
-  photos=[]; renderPhotos(); clearSig();
+  photos=[]; renderPhotos(); clearPhotos(); clearSig();
   // Reset defaults
   const today=new Date().toISOString().split('T')[0];
   document.getElementById('surveyDate').value=today;
@@ -813,6 +876,7 @@ document.getElementById('signDate').value=today;
 load();
 initSig();
 renderPhotos();
+loadPhotos().then(arr => { photos = arr; renderPhotos(); });
 document.getElementById('btnBack').style.display='none';
 document.body.addEventListener('input',save);
 document.body.addEventListener('change',save);
